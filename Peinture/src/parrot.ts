@@ -5,6 +5,9 @@ import {
   AnyMachineSnapshot,
   fromPromise,
   fromCallback,
+  stateIn,
+  not,
+  and,
 } from "xstate";
 import { speechstate } from "speechstate";
 // import { createBrowserInspector } from "@statelyai/inspect";
@@ -15,6 +18,9 @@ interface Move {
   role: "assistant" | "user";
   content: string;
 }
+
+const HOST_PORT = "localhost:10012";
+const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
 // const inspector = createBrowserInspector();
 
@@ -30,7 +36,7 @@ const settings = {
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 10000,
   locale: "en-US",
-  ttsDefaultVoice: "en-US-EchoMultilingualNeural",
+  ttsDefaultVoice: "en-US-EmmaMultilingualNeural",
 };
 
 const dmMachine = setup({
@@ -67,25 +73,32 @@ const dmMachine = setup({
     getDescription: fromPromise<any, { model: string; image: string }>(
       async ({ input }) => {
         console.log(`Asking ${input.model}...`);
-        const response = await fetch("http://localhost:10012/api/generate", {
-          method: "POST",
-          body: JSON.stringify({
-            model: input.model,
-            // keep_alive: 0,
-            stream: false,
-            prompt:
-              "What's on this image? Please provide a description which would be suitable for a human to assess the artistic quality of the image. Be as precise and specific as possible.",
-            images: [input.image],
-          }),
-        });
+        const response = await fetch(
+          `http://0.0.0.0:8181/http://127.0.0.1:54321/furhat/gesture?blocking=false`,
+          {
+            method: "POST",
+            headers: { accept: "application/json", origin: "localhost" },
+            body: JSON.stringify({
+              name: "EvilLaughing",
+              frames: [
+                {
+                  time: [0, 1],
+                  params: {
+                    PHONE_OH: 1,
+                  },
+                },
+              ],
+              class: "furhatos.gestures.Gesture",
+            }),
+          },
+        );
         return response.json();
       },
     ),
-
-    fetchResponse: fromPromise<
+    fetchSSE: fromCallback<
       any,
-      { model: string; moves: Move[]; lm: Move; imageDescription: string }
-    >(async ({ input }) => {
+      { model: string; moves: Move[]; imageDescription: string }
+    >(({ sendBack, input }) => {
       const body = {
         stream: true,
         model: input.model,
@@ -102,39 +115,32 @@ const dmMachine = setup({
           ...[...input.moves],
         ],
       };
-      console.log(`Asking ${input.model}...`, body);
-      const response = await fetch(
-        "http://localhost:10012/v1/chat/completions",
-        {
-          method: "POST",
-          body: JSON.stringify(body),
+      let source = new SSE(`http://${HOST_PORT}/v1/chat/completions`, {
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
-      if (!response.body) return;
-      const reader = response.body
-        .pipeThrough(new TextDecoderStream())
-        .getReader();
-      let output = "";
-      while (true) {
-        let { value, done } = await reader.read();
-        if (done) break;
-        let dataDone = false;
-        const arr = value!.split("\n");
-        arr.forEach((data) => {
-          if (data.length === 0) return; // ignore empty message
-          if (data.startsWith(":")) return; // ignore sse comment message
-          if (data === "data: [DONE]") {
-            dataDone = true;
-            return;
+        method: "POST",
+        payload: JSON.stringify(body),
+      });
+      console.log(`Asking ${input.model}...`, body);
+      source.addEventListener("message", (e: any) => {
+        if (e.data !== "[DONE]") {
+          let payload = JSON.parse(e.data);
+          sendBack({
+            type: "STREAMING_CHUNK",
+            value: payload.choices[0].delta.content,
+          });
+          if (payload.choices[0].delta.content.includes("\n")) {
+            sendBack({
+              type: "STREAMING_DONE",
+            });
           }
-          const json = JSON.parse(data.substring(6));
-          output = `${output}${json.choices[0].delta.content}`;
-          // console.debug("⌚", json.choices[0].delta.content);
-        });
-        if (dataDone) break;
-      }
-      console.log(output);
-      return output;
+        } else {
+          sendBack({
+            type: "STREAMING_DONE",
+          });
+        }
+      });
     }),
   },
   actions: {
@@ -144,7 +150,7 @@ const dmMachine = setup({
         "Mask.jpg",
         "Judith.jpg",
         "Misunderstood.jpg",
-        // "Rodion.jpg",
+        "Rodion.jpg",
       ];
       const random = Math.floor(Math.random() * images.length);
       const newIS = {
@@ -161,13 +167,14 @@ const dmMachine = setup({
     }),
 
     /** speak and listen */
-    speak_output_top: ({ context }) =>
+    speak_output: ({ context }) => {
       context.ssRef.send({
         type: "SPEAK",
         value: {
-          utterance: context.is.output[0],
+          utterance: context.is.output.join(" "),
         },
-      }),
+      });
+    },
     listen: ({ context }) =>
       context.ssRef.send({
         type: "LISTEN",
@@ -178,10 +185,6 @@ const dmMachine = setup({
       const utterance = event.value[0].utterance;
       const newIS = {
         ...context.is,
-        lm: {
-          role: "user",
-          content: utterance,
-        } as any,
         moves: [
           ...context.is.moves,
           {
@@ -200,10 +203,6 @@ const dmMachine = setup({
         "(the user is not saying anything or you can't hear them)";
       const newIS = {
         ...context.is,
-        lm: {
-          role: "user",
-          content: utterance,
-        } as any,
         moves: [
           ...context.is.moves,
           {
@@ -225,7 +224,15 @@ const dmMachine = setup({
       return { is: newIS };
     }),
     dequeue_output: assign(({ context }) => {
-      const newIS = { ...context.is, output: context.is.output.slice(1) };
+      const move = {
+        role: "assistant",
+        content: context.is.output.join(" "),
+      };
+      const newIS = {
+        ...context.is,
+        moves: [...context.is.moves, move],
+        output: [],
+      } as any;
       console.log("[IS dequeue_output]", newIS);
       return { is: newIS };
     }),
@@ -237,20 +244,44 @@ const dmMachine = setup({
       console.log("[IS enqueue_output_from_input]", newIS);
       return { is: newIS };
     }),
-    enqueue_output_from_llm: assign(({ context, event }) => {
-      const move = {
-        role: "assistant",
-        content: event.output,
-        image: [context.image64],
-      };
+    enqueue_pending_from_llm: assign(({ context, event }) => {
       const newIS = {
         ...context.is,
-        output: [event.output, ...context.is.output],
-        lm: move,
-        moves: [...context.is.moves, move],
-      } as any; // FIXME
-      console.log("[IS enqueue_output_from_llm]", newIS);
+        pendingOutput: context.is.pendingOutput + event.value,
+      } as any;
+      console.log("[IS enqueue_pending_from_llm]", newIS);
       return { is: newIS };
+    }),
+    enqueue_output_from_pending_unconditionally: assign(({ context }) => {
+      if (context.is.pendingOutput) {
+        const utterancePart = context.is.pendingOutput;
+        const newIS = {
+          ...context.is,
+          output: [...context.is.output, utterancePart],
+          pendingOutput: "",
+        } as any; // FIXME
+        console.log("[IS enqueue_output_from_pending_unconditionally]", newIS);
+        return { is: newIS };
+      } else {
+        return { is: context.is };
+      }
+    }),
+    enqueue_output_from_pending: assign(({ context }) => {
+      if (context.is.pendingOutput.match(UTTERANCE_CHUNK_REGEX)) {
+        const match = context.is.pendingOutput.match(UTTERANCE_CHUNK_REGEX);
+        const utterancePart = match![0];
+        const restOfPendingOutput = context.is.pendingOutput.substring(
+          utterancePart.length,
+        );
+        const newIS = {
+          ...context.is,
+          output: [...context.is.output, utterancePart],
+          pendingOutput: restOfPendingOutput,
+        } as any; // FIXME
+        console.log("[IS enqueue_output_from_pending]", newIS);
+        return { is: newIS };
+      }
+      return { is: context.is };
     }),
   },
   guards: {
@@ -267,7 +298,7 @@ const dmMachine = setup({
         output: string[];
         image: string;
         moves: Move[];
-        lm: Move;
+        pendingOutput: string;
       };
       image64?: string;
       imageDescription?: string;
@@ -278,6 +309,7 @@ const dmMachine = setup({
     is: {
       input: [],
       output: ["Hi there! Let's start our discussion!"],
+      pendingOutput: "",
       moves: [
         {
           role: "assistant",
@@ -285,10 +317,6 @@ const dmMachine = setup({
         },
       ],
       image: "",
-      lm: {
-        role: "assistant",
-        content: "Hi there! Let's start our discussion!",
-      },
     },
   },
   id: "DM",
@@ -328,15 +356,14 @@ const dmMachine = setup({
     },
     WarmUpChatLLM: {
       invoke: {
-        src: "fetchResponse",
+        src: "fetchSSE",
         input: ({ context }) => ({
-          model: "mistral",
+          model: "zephyr",
           moves: context.is.moves,
-          lm: context.is.lm,
           imageDescription: context.imageDescription!,
         }),
-        onDone: { target: "WaitToStart" },
       },
+      on: { STREAMING_DONE: { target: "WaitToStart" } },
     },
     WaitToStart: {
       on: {
@@ -344,48 +371,93 @@ const dmMachine = setup({
       },
     },
     Main: {
-      initial: "Process",
+      type: "parallel",
       states: {
-        Process: {
-          always: [
-            {
-              guard: "lastInputIsTimeout",
-              actions: "dequeue_input",
-            },
-            {
-              guard: "inputIsNotEmpty",
-              actions: ["dequeue_input"],
-            },
-            {
-              guard: "outputIsNotEmpty",
-              actions: ["speak_output_top", "dequeue_output"],
-            },
-          ],
-          on: { SPEAK_COMPLETE: "Ask" },
+        Speaking: {
+          initial: "Off",
+          states: {
+            On: { on: { SPEAK_COMPLETE: "Off" } },
+            Off: { id: "SpeakingOff", on: { TTS_STARTED: "On" } },
+          },
         },
-        Ask: {
-          entry: "listen",
-          on: {
-            RECOGNISED: {
-              target: "GenerateOutput",
-              actions: "enqueue_recognition_result",
+        ProcessAndAsk: {
+          initial: "Process",
+          states: {
+            Process: {
+              always: [
+                {
+                  guard: "lastInputIsTimeout",
+                  actions: "dequeue_input",
+                },
+                {
+                  guard: "inputIsNotEmpty",
+                  actions: ["dequeue_input"],
+                },
+                {
+                  guard: and([stateIn("#SpeakingOff"), "outputIsNotEmpty"]),
+                  actions: ["speak_output", "dequeue_output"],
+                },
+              ],
+              on: {
+                SPEAK_COMPLETE: {
+                  target: "Ask",
+                  guard: and([
+                    not(stateIn("#Generating")),
+                    not("outputIsNotEmpty"),
+                  ]),
+                },
+              },
             },
-            ASR_NOINPUT: {
-              target: "GenerateOutput",
-              // actions: "enqueue_input_timeout",
+            Ask: {
+              entry: "listen",
+              on: {
+                RECOGNISED: {
+                  target: "Process",
+                },
+                ASR_NOINPUT: {
+                  target: "Ask",
+                  reenter: true,
+                },
+              },
             },
           },
         },
         GenerateOutput: {
-          invoke: {
-            src: "fetchResponse",
-            input: ({ context }) => ({
-              model: "mistral",
-              moves: context.is.moves,
-              lm: context.is.lm,
-              imageDescription: context.imageDescription!,
-            }),
-            onDone: { actions: "enqueue_output_from_llm", target: "Process" },
+          initial: "Idle",
+          states: {
+            Idle: {
+              on: {
+                RECOGNISED: {
+                  target: "Generating",
+                  actions: "enqueue_recognition_result",
+                },
+              },
+            },
+            Generating: {
+              id: "Generating",
+              invoke: {
+                src: "fetchSSE",
+                input: ({ context }) => ({
+                  model: "zephyr",
+                  moves: context.is.moves,
+                  imageDescription: context.imageDescription!,
+                }),
+              },
+              on: {
+                STREAMING_CHUNK: [
+                  {
+                    actions: [
+                      "enqueue_pending_from_llm",
+                      "enqueue_output_from_pending",
+                    ],
+                  },
+                ],
+                STREAMING_DONE: {
+                  target: "Idle",
+                  actions: "enqueue_output_from_pending_unconditionally",
+                },
+              },
+            },
           },
         },
       },
