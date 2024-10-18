@@ -54,6 +54,7 @@ const dmMachine = setup({
           var ratio = Math.min(hRatio, vRatio);
           var centerShift_x = (canvas.width - img.width * ratio) / 2;
           var centerShift_y = (canvas.height - img.height * ratio) / 2;
+
           ctx.drawImage(
             img,
             0,
@@ -73,25 +74,17 @@ const dmMachine = setup({
     getDescription: fromPromise<any, { model: string; image: string }>(
       async ({ input }) => {
         console.log(`Asking ${input.model}...`);
-        const response = await fetch(
-          `http://0.0.0.0:8181/http://127.0.0.1:54321/furhat/gesture?blocking=false`,
-          {
-            method: "POST",
-            headers: { accept: "application/json", origin: "localhost" },
-            body: JSON.stringify({
-              name: "EvilLaughing",
-              frames: [
-                {
-                  time: [0, 1],
-                  params: {
-                    PHONE_OH: 1,
-                  },
-                },
-              ],
-              class: "furhatos.gestures.Gesture",
-            }),
-          },
-        );
+        const response = await fetch("http://localhost:10012/api/generate", {
+          method: "POST",
+          body: JSON.stringify({
+            model: input.model,
+            // keep_alive: 0,
+            stream: false,
+            prompt:
+              "What's on this image? Please provide a description which would be suitable for a human to assess the artistic quality of the image. Be as precise and specific as possible.",
+            images: [input.image],
+          }),
+        });
         return response.json();
       },
     ),
