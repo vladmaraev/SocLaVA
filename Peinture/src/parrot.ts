@@ -44,7 +44,7 @@ const dmMachine = setup({
     setup_image: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: string }) => {
         const element = document.querySelector("#img")!;
-        element.innerHTML = `<canvas id="canvas" width="672" height="672"></canvas>`;
+        element.innerHTML = `<canvas aria-label="${input}" class="" id="canvas" width="672" height="672"></canvas>`;
         const canvas = <HTMLCanvasElement>document.getElementById("canvas");
         const ctx = canvas.getContext("2d")!;
         const img = new Image();
@@ -74,7 +74,7 @@ const dmMachine = setup({
     getDescription: fromPromise<any, { model: string; image: string }>(
       async ({ input }) => {
         console.log(`Asking ${input.model}...`);
-        const response = await fetch("http://localhost:10012/api/generate", {
+        const response = await fetch(`http://${HOST_PORT}/api/generate`, {
           method: "POST",
           body: JSON.stringify({
             model: input.model,
@@ -143,7 +143,7 @@ const dmMachine = setup({
         "Mask.jpg",
         "Judith.jpg",
         "Misunderstood.jpg",
-        "Rodion.jpg",
+        // "Rodion.jpg",
       ];
       const random = Math.floor(Math.random() * images.length);
       const newIS = {
@@ -156,6 +156,7 @@ const dmMachine = setup({
       console.log("base64 encoding image...");
       const canvas = <HTMLCanvasElement>document.getElementById("canvas");
       const image = canvas.toDataURL("image/jpeg").split(";base64,")[1];
+      console.debug(image);
       return { image64: image };
     }),
 

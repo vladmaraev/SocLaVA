@@ -6,12 +6,12 @@ import time
 
 url = "http://localhost:10012/api/generate"
 
-img = cv2.imread('/Users/xmarvl/Downloads/frame_049385.jpg')
+img = cv2.imread('img/0097.jpg')
 jpg_img = cv2.imencode('.jpg', img)
 b64_string = base64.b64encode(jpg_img[1]).decode('utf-8')
 
 payload = {"model": "llava:34b-v1.6",
-           "prompt":"What is in this picture?",
+           "prompt": "Is the person on the right looking directly at the person on the left?",
            "stream": False,
            "images": [b64_string]}
 

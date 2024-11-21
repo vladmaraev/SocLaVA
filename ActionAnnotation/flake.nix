@@ -8,7 +8,7 @@
   outputs = { self, nixpkgs }:
     let
       forAllSystems = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-darwin" ];
-      localPkgs = forAllSystems (system: nixpkgs.legacyPackages.${system});
+      localPkgs = forAllSystems (system: import nixpkgs { system=system; overlays=serverOverlays; config = serverConfig; });
       serverPkgs = forAllSystems (system: import nixpkgs { system=system; overlays=serverOverlays; config = serverConfig; });
       tex = pkgs: (pkgs.texlive.combine { 
         inherit (pkgs.texlive) scheme-small
