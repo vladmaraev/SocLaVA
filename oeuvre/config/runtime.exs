@@ -20,6 +20,15 @@ if System.get_env("PHX_SERVER") do
   config :oeuvre, OeuvreWeb.Endpoint, server: true
 end
 
+config :oeuvre, Oeuvre.OllamaService,
+  host: System.get_env("OLLAMA_HOST") || "localhost"         
+
+config :oeuvre, Oeuvre.AzureService,
+  key: System.get_env("AZURE_KEY") ||
+      raise """
+      environment variable AZURE_KEY is missing.
+      """
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -54,16 +63,18 @@ if config_env() == :prod do
   config :oeuvre, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :oeuvre, OeuvreWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: port, scheme: "http"],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0},
+      ip: :any, # {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
     secret_key_base: secret_key_base
+
+
 
   # ## SSL Support
   #

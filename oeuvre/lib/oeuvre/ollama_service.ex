@@ -5,6 +5,8 @@ defmodule Oeuvre.OllamaService do
 
   alias Phoenix.PubSub
 
+  defp ollama_host, do: Application.fetch_env!(:oeuvre, Oeuvre.OllamaService)[:host]
+
   def get_image_base64(imgname) do
     {:ok, %{:status => status, :body => body}} =
       Req.get(
@@ -34,7 +36,7 @@ defmodule Oeuvre.OllamaService do
   end
 
   def chat(image_description, history \\ []) do
-    Req.post!("http://localhost:11434/api/chat",
+    Req.post!("http://#{ollama_host()}:11434/api/chat",
       json: %{
         model: "zephyr",
         stream: true,
@@ -55,8 +57,7 @@ defmodule Oeuvre.OllamaService do
   end
 
   def ollama_generate_visual_description(image64) do
-    Req.post!("http://localhost:11434/api/generate",
-      cache: true,
+    Req.post!("http://#{ollama_host()}:11434/api/generate",
       json: %{
         model: "llava:34b",
         stream: false,

@@ -1,14 +1,9 @@
 import { assign, createActor, setup, fromPromise } from "xstate";
 
 import { speechstate, SpeechStateExternalEvent } from "speechstate";
-const azureCredentials = {
-  endpoint:
-    "https://swedencentral.api.cognitive.microsoft.com/sts/v1.0/issueToken",
-  key: "d20e2774178d48d7941be63ee9971853",
-};
 
 const settings = {
-  azureCredentials: azureCredentials,
+  azureCredentials: "/azureToken",
   azureRegion: "swedencentral",
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 10000,

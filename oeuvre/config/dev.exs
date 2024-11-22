@@ -2,13 +2,12 @@ import Config
 
 # Configure your database
 config :oeuvre, Oeuvre.Repo,
-  username: "postgres.ttlfngopsrcdgjlvuitl",
-  password: "S4quCek92lCovnrc",
-  hostname: "aws-0-eu-north-1.pooler.supabase.com",
-  database: "postgres",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  url:
+    System.get_env("DATABASE_URL") ||
+      raise """
+      environment variable DATABASE_URL is missing.
+      For example: ecto://USER:PASS@HOST/DATABASE
+      """
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

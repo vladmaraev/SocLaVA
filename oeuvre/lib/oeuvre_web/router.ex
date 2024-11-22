@@ -37,6 +37,14 @@ defmodule OeuvreWeb.Router do
     post "/chat", OllamaController, :chat
   end
 
+  scope "/azureToken", OeuvreWeb do
+    pipe_through :api
+
+    get "/", AzureController, :token
+  end
+
+  
+
   scope "/demo", OeuvreWeb do
     pipe_through :browser
 
