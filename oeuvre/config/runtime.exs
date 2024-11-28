@@ -21,7 +21,8 @@ if System.get_env("PHX_SERVER") do
 end
 
 config :oeuvre, Oeuvre.OllamaService,
-  host: System.get_env("OLLAMA_HOST") || "localhost"         
+       host: System.get_env("OLLAMA_HOST") || "localhost",
+       port: System.get_env("OLLAMA_PORT") || "11434"
 
 config :oeuvre, Oeuvre.AzureService,
   key: System.get_env("AZURE_KEY") ||
@@ -59,11 +60,12 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
+  path = System.get_env("PHX_PATH") || "/"
 
   config :oeuvre, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :oeuvre, OeuvreWeb.Endpoint,
-    url: [host: host, port: port, scheme: "http"],
+    url: [host: host, port: port, path: path, scheme: "http"],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.

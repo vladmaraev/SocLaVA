@@ -6,6 +6,14 @@ defmodule Oeuvre.OllamaService do
   alias Phoenix.PubSub
 
   defp ollama_host, do: Application.fetch_env!(:oeuvre, Oeuvre.OllamaService)[:host]
+  defp ollama_port, do: Application.fetch_env!(:oeuvre, Oeuvre.OllamaService)[:port]
+
+  defp ollama_base_url do
+    host = Application.fetch_env!(:oeuvre, Oeuvre.OllamaService)[:host]
+    port = Application.fetch_env!(:oeuvre, Oeuvre.OllamaService)[:port]
+    "http://#{host}:#{port}"
+  end
+  
 
   def get_image_base64(imgname) do
     {:ok, %{:status => status, :body => body}} =
@@ -29,18 +37,17 @@ defmodule Oeuvre.OllamaService do
 
   defp chat_system_prompt(image_description) do
     """
-    You will be chatting with the user using spoken language. Keep your response VERY brief. Please,answer with just one very short sentence!\n\nBoth you and the user are presented with an artwork and you need to express your opinion about it. In dialogue, you need to come to agreement about the artistic qualities of the work. You can "see" the image through the vision module which tells you the following:\n\n
+    You are a helpful voice assistant. You will be chatting with the user using spoken language. Keep your response VERY brief. Please,answer with just one very short sentence!\n\nBoth you and the user are presented with an artwork and you need to express your opinion about it. In dialogue, you need to come to agreement about the artistic qualities of the work. You can "see" the image through the vision module which tells you the following:\n\n
     #{image_description}
-    \n\nDon't forget to you keep your response consise. If the user is not responding say: "Sorry, I didn't hear you."
+    \n\nIf the user is not responding say: Sorry, I didn't hear you.\n\nPlease, be consise. 
     """
   end
 
   def chat(image_description, history \\ []) do
-    Req.post!("http://#{ollama_host()}:11434/api/chat",
+    Req.post!("#{ollama_base_url()}/api/chat",
       json: %{
-        model: "zephyr",
+        model: "mistral-nemo",
         stream: true,
-        options: %{num_predict: 50},
         messages: [
           %{role: "system", content: chat_system_prompt(image_description)}
           | history
@@ -57,7 +64,7 @@ defmodule Oeuvre.OllamaService do
   end
 
   def ollama_generate_visual_description(image64) do
-    Req.post!("http://#{ollama_host()}:11434/api/generate",
+    Req.post!("#{ollama_base_url()}/api/generate",
       json: %{
         model: "llava:34b",
         stream: false,

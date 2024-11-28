@@ -3,12 +3,12 @@ import { assign, createActor, setup, fromPromise } from "xstate";
 import { speechstate, SpeechStateExternalEvent } from "speechstate";
 
 const settings = {
-  azureCredentials: "/azureToken",
+  azureCredentials: "azureToken",
   azureRegion: "swedencentral",
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 10000,
-  locale: "en-US",
-  ttsDefaultVoice: "en-US-EmmaMultilingualNeural",
+  locale: "en-GB",
+  ttsDefaultVoice: "en-GB-OllieMultilingualNeural",
 };
 
 interface Move {
@@ -20,7 +20,7 @@ const dmMachine = setup({
   actors: {
     callGpt: fromPromise<any, { description: string; history: Move[] }>(
       async ({ input }) => {
-        const response = await fetch("http://localhost:4000/ollama/chat", {
+        const response = await fetch("ollama/chat", {
           headers: {
             "Content-Type": "application/json",
           },
@@ -46,7 +46,7 @@ const dmMachine = setup({
         type: "SPEAK",
         value: {
           utterance: "",
-          stream: "http://localhost:4000/sse",
+          stream: "sse",
         },
       });
     },
@@ -164,17 +164,33 @@ const dmMachine = setup({
       type: "parallel",
       states: {
         CallGpt: {
-          invoke: {
-            src: "callGpt",
-            input: ({ context }) => ({
-              description: context.imageDescription!,
-              history: context.is.moves,
-            }),
-            onDone: { actions: "enqueue_assistant_move" },
+          initial: "Calling",
+          states: {
+            Calling: {
+              invoke: {
+                src: "callGpt",
+                input: ({ context }) => ({
+                  description: context.imageDescription!,
+                  history: context.is.moves,
+                }),
+                onDone: { actions: "enqueue_assistant_move", target: "Called" },
+              },
+            },
+            Called: { type: "final" },
           },
         },
-        Speak: { entry: { type: "speak_stream" } },
+        Speak: {
+          initial: "Speaking",
+          states: {
+            Speaking: {
+              entry: { type: "speak_stream" },
+              on: { SPEAK_COMPLETE: "Spoken" },
+            },
+            Spoken: { type: "final" },
+          },
+        },
       },
+      onDone: "Ask",
     },
   },
 });
