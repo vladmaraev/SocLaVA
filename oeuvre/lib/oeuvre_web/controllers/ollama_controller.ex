@@ -18,7 +18,9 @@ defmodule OeuvreWeb.OllamaController do
     PubSub.subscribe(Oeuvre.PubSub, "user:123")
     OllamaService.chat(description, history)
     result = loop("")
-    json(conn, %{:role => "user", :content => result})
+    Logger.debug(result)
+    PubSub.unsubscribe(Oeuvre.PubSub, "user:123")
+    json(conn, %{:role => "assistant", :content => result})
   end
 
   defp loop(string) do

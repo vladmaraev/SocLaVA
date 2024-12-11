@@ -21,6 +21,7 @@ defmodule OeuvreWeb.SseController do
         sse_loop(conn)
 
       "" ->
+        PubSub.unsubscribe(Oeuvre.PubSub, "user:123")
         conn |> chunk("event: STREAMING_DONE\ndata: \n\n")
         conn
 

@@ -3,7 +3,7 @@
   "devDependencies": {},
   "dependencies": {
     "esbuild": "^0.24.0",
-    "speechstate": "2.6.0"
+    "speechstate": "^2.8.0"
   },
   "trustedDependencies": ["core-js-pure", "p-defer-es5"]
 }

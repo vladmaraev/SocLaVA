@@ -45,14 +45,16 @@ defmodule Oeuvre.OllamaService do
   end
 
   def chat(image_description, history \\ []) do
+    messages = [
+          %{role: "system", content: chat_system_prompt(image_description)}
+          | history
+    ]
+    Logger.debug("<<< #{inspect(messages)}")
     Req.post!("#{ollama_base_url()}/api/chat",
       json: %{
         model: "mistral",
         stream: true,
-        messages: [
-          %{role: "system", content: chat_system_prompt(image_description)}
-          | history
-        ]
+        messages: messages
       },
       into: fn {:data, data}, {req, resp} ->
         decoded_data = Jason.decode!(data)

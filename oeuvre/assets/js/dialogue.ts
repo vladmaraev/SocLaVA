@@ -8,7 +8,7 @@ const settings = {
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 10000,
   locale: "en-GB",
-  ttsDefaultVoice: "en-GB-OllieMultilingualNeural",
+  ttsDefaultVoice: "en-GB-SoniaNeural",
 };
 
 interface Move {
@@ -88,11 +88,12 @@ const dmMachine = setup({
       return { is: newIS };
     }),
     enqueue_assistant_move: assign(({ context, event }) => {
+      console.log("[IS enqueue_assistant_move]", event.output);
       const newIS = {
         ...context.is,
         moves: [...context.is.moves, (event as any).output],
       } as any;
-      console.log("[IS enqueue_pending_from_llm]", newIS);
+      console.log("[IS enqueue_assistant_move]", newIS);
       return { is: newIS };
     }),
   },
@@ -151,12 +152,13 @@ const dmMachine = setup({
       entry: "listen",
       on: {
         RECOGNISED: {
-          target: "Respond",
           actions: { type: "enqueue_recognition_result" },
         },
         ASR_NOINPUT: {
-          target: "Respond",
           actions: { type: "enqueue_input_timeout" },
+        },
+        LISTEN_COMPLETE: {
+          target: "Respond",
         },
       },
     },
