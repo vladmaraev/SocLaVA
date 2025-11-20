@@ -1,0 +1,40 @@
+code	question
+attention1	The agent's hand movements were natural.
+attention2	I can literally hear stones laughing at me.
+q1	Do you agree with the following statements about this work of art?
+q1a	It is unique.
+q1b	It makes me curious.
+q1c	It makes me feel troubled.
+q1d	With regard to its content it remains inaccessible to me.
+q1e	It makes me think about my own life history.	
+q1f	It is beautiful.
+q3	Do you agree with the following statements about the agent?
+q3a	The agent has a human-like manner
+q3b	I like the agent
+q3c	The agent is boring
+q3d	The interaction captured my attention
+q3e	The agent does its task well
+q3f	The agent interacts socially with me
+q3g	I will use the agent again in the future
+q3h	I can rely on the agent
+q3i	The agent’s behavior does not make sense
+q3j	The agent has no clue of what it is doing
+q3k	The agent is a social entity
+q3l	The agent is emotional	
+q_6	Rate the discussion that you had with the AI agent.
+q7	Do you agree with the following statements:
+q7a	I can always tell if someone is laughing at or with me.	
+q7b	Sometimes I laugh to stop other people from getting angry with me.	
+q7c	I can tell when someone is laughing to stop me getting angry at them.	
+q7d	I often laugh to avoid expressing frustration.	
+q7e	I can tell when people are laughing because they want something from me.	
+q7f	I sometimes laugh to avoid expressing sadness.	
+q7g	Hearing people faking laughter irritates me.	
+q7h	I often laugh deliberately to show that I like someone.	
+q7i	I can never tell if someone is deliberately laughing to pretend that they are amused.	
+q7j	I can never tell if someone is laughing because they want something from me.	
+q7k	I can never tell if someone is laughing to stop me getting angry with them.	
+q7l	Sometimes I find it difficult to tell when someone is laughing just to be polite.	
+q7m	I can tell when someone is deliberately laughing to pretend that they are amused.	
+q7n	Sometimes I find it difficult to tell when someone is laughing nastily.	
+q_8 	Did you notice the agent laughing during the discussion.
